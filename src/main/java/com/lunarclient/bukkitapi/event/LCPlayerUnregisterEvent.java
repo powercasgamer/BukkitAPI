@@ -7,7 +7,8 @@ import org.bukkit.event.player.PlayerEvent;
 
 public final class LCPlayerUnregisterEvent extends PlayerEvent {
 
-    @Getter private static HandlerList handlerList = new HandlerList();
+    @Getter
+    private static final HandlerList handlerList = new HandlerList();
 
     /**
      * Called whenever a player unregisters the LC plugin channel

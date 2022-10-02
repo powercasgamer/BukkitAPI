@@ -8,9 +8,11 @@ import org.bukkit.event.player.PlayerEvent;
 
 public final class LCPacketSentEvent extends PlayerEvent {
 
-    @Getter private static HandlerList handlerList = new HandlerList();
+    @Getter
+    private static final HandlerList handlerList = new HandlerList();
 
-    @Getter private final LCPacket packet;
+    @Getter
+    private final LCPacket packet;
 
     /**
      * Called when the server sends a {@link LCPacket} to the Lunar Client user.

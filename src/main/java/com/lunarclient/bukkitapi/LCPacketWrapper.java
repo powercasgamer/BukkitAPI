@@ -25,7 +25,7 @@ public interface LCPacketWrapper<T extends LCPacket> {
 
     /**
      * Send any LCPacket to a Lunar Client user. This is used in `send` method above.
-     *
+     * <p>
      * NOTE: This is intended to send only the wrapped packet, but can be used to
      * send other packets. Although it technically can be done, in most cases it would
      * be better to use {@link LunarClientAPI} to send a packet.

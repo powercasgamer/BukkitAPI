@@ -1,17 +1,21 @@
 package com.lunarclient.bukkitapi;
 
-import com.lunarclient.bukkitapi.event.*;
+import com.lunarclient.bukkitapi.event.LCPacketReceivedEvent;
+import com.lunarclient.bukkitapi.event.LCPacketSentEvent;
+import com.lunarclient.bukkitapi.event.LCPlayerUnregisterEvent;
 import com.lunarclient.bukkitapi.listener.LunarClientLoginListener;
 import com.lunarclient.bukkitapi.nethandler.LCPacket;
 import com.lunarclient.bukkitapi.nethandler.client.*;
 import com.lunarclient.bukkitapi.nethandler.server.LCNetHandlerServer;
 import com.lunarclient.bukkitapi.nethandler.shared.LCPacketWaypointAdd;
 import com.lunarclient.bukkitapi.nethandler.shared.LCPacketWaypointRemove;
-import com.lunarclient.bukkitapi.object.*;
 import com.lunarclient.bukkitapi.object.LCWaypoint;
+import com.lunarclient.bukkitapi.object.StaffModule;
 import lombok.Getter;
 import lombok.Setter;
 import org.bukkit.Bukkit;
+import org.bukkit.ChatColor;
+import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.entity.Player;
 import org.bukkit.event.Listener;
@@ -27,10 +31,14 @@ import java.util.stream.Collectors;
 public final class LunarClientAPI extends JavaPlugin implements Listener {
 
     public static final String MESSAGE_CHANNEL = "lunarclient:pm";
+    public static final ChatColor[] CHAT_COLORS = ChatColor.values();
+    public static final Material[] MATERIALS = Material.values();
 
-    @Getter private static LunarClientAPI instance;
+    @Getter
+    private static LunarClientAPI instance;
 
-    @Setter private LCNetHandlerServer netHandlerServer = new LunarClientDefaultNetHandler();
+    @Setter
+    private LCNetHandlerServer netHandlerServer = new LunarClientDefaultNetHandler();
     private final Set<UUID> playersRunningLunarClient = Collections.newSetFromMap(new ConcurrentHashMap<>());
     private final Set<UUID> playersNotRegistered = new HashSet<>();
     private final Map<UUID, List<LCPacket>> packetQueue = new HashMap<>();
@@ -40,8 +48,8 @@ public final class LunarClientAPI extends JavaPlugin implements Listener {
     public void onEnable() {
         instance = this;
 
-        registerPluginChannel(MESSAGE_CHANNEL);
-        getServer().getPluginManager().registerEvents(new LunarClientLoginListener(this), this);
+        this.registerPluginChannel(MESSAGE_CHANNEL);
+        this.getServer().getPluginManager().registerEvents(new LunarClientLoginListener(this), this);
     }
 
     /**
@@ -49,12 +57,12 @@ public final class LunarClientAPI extends JavaPlugin implements Listener {
      *
      * @param bukkitChannel The incoming plugin channel based on Minecraft Version.
      */
-    private void registerPluginChannel(String bukkitChannel) {
-        Messenger messenger = getServer().getMessenger();
+    private void registerPluginChannel(final String bukkitChannel) {
+        final Messenger messenger = getServer().getMessenger();
         messenger.registerOutgoingPluginChannel(this, bukkitChannel);
         messenger.registerIncomingPluginChannel(this, bukkitChannel, (channel, player, bytes) -> {
-            LCPacket packet = LCPacket.handle(bytes, player);
-            Bukkit.getPluginManager().callEvent(new LCPacketReceivedEvent(player, packet));
+            final LCPacket packet = LCPacket.handle(bytes, player);
+            this.getServer().getPluginManager().callEvent(new LCPacketReceivedEvent(player, packet));
             packet.process(netHandlerServer);
         });
     }
@@ -62,35 +70,37 @@ public final class LunarClientAPI extends JavaPlugin implements Listener {
     /**
      * Called when the player has been online for 2 seconds without
      * sending any sort of registration stating they're on lunar client.
-     *
+     * <p>
      * This will remove all queued packets that we've saved, and prevent further packets
      * from being stored for this player.
-     *
+     * <p>
      * Used in {@link LunarClientLoginListener}. Do not use unless you are certain you need this.
      *
      * @param player The player that has been online for at least 2 seconds.
      */
-    public void failPlayerRegister(Player player) {
-        playersNotRegistered.add(player.getUniqueId());
-        packetQueue.remove(player.getUniqueId());
+    public void failPlayerRegister(final Player player) {
+        this.playersNotRegistered.add(player.getUniqueId());
+        this.packetQueue.remove(player.getUniqueId());
     }
 
     /**
      * Register the player as a Lunar Client player based off of their
      * bukkit plugin channel registration.
-     *
+     * <p>
      * NOTE: Do NOT use this as an anticheat method as this can be spoofed,
      * or changed. This is intended for cosmetic use only!
      *
      * @param player The player registering as a Lunar Client user.
      */
-    public void registerPlayer(Player player) {
-        playersNotRegistered.remove(player.getUniqueId());
-        playersRunningLunarClient.add(player.getUniqueId());
-        if (packetQueue.containsKey(player.getUniqueId())) {
-            packetQueue.get(player.getUniqueId()).forEach(p -> sendPacket(player,  p));
+    public void registerPlayer(final Player player) {
+        this.playersNotRegistered.remove(player.getUniqueId());
+        this.playersRunningLunarClient.add(player.getUniqueId());
+        if (this.packetQueue.containsKey(player.getUniqueId())) {
+            for (LCPacket packet : packetQueue.get(player.getUniqueId())) {
+                this.sendPacket(player, packet);
+            }
 
-            packetQueue.remove(player.getUniqueId());
+            this.packetQueue.remove(player.getUniqueId());
         }
     }
 
@@ -99,36 +109,37 @@ public final class LunarClientAPI extends JavaPlugin implements Listener {
      * or by quitting. Either way we remove the player from the set, if they did not
      * quit we don't want to remove them from NotRegistered players as we would
      * continue to hold packets for them.
-     *
+     * <p>
      * If they did not quit, we don't want to hold packets for them forever so we
      * add them to the not registered players set.
      *
      * @param player The player who has unregistered themself from the plugin channel.
-     * @param quit A {@link Boolean} value of weather the player quit or simply unregistered from the channel.
+     * @param quit   A {@link Boolean} value of weather the player quit or simply unregistered from the channel.
      */
-    public void unregisterPlayer(Player player, boolean quit) {
-        playersRunningLunarClient.remove(player.getUniqueId());
+    public void unregisterPlayer(final Player player, boolean quit) {
+        this.playersRunningLunarClient.remove(player.getUniqueId());
         if (quit) {
-            playersNotRegistered.remove(player.getUniqueId());
+            this.playersNotRegistered.remove(player.getUniqueId());
         } else {
-            playersNotRegistered.add(player.getUniqueId());
-            getServer().getPluginManager().callEvent(new LCPlayerUnregisterEvent(player));
+            this.playersNotRegistered.add(player.getUniqueId());
+            this.getServer().getPluginManager().callEvent(new LCPlayerUnregisterEvent(player));
         }
     }
 
     /**
      * Checks if the player is currently running lunar client.
+     *
      * @param player {@link Player} suspect of using Lunar Client.
      * @return The {@link Boolean} value of weather the online player is currently using Lunar Client.
      */
-    public boolean isRunningLunarClient(Player player) {
+    public boolean isRunningLunarClient(final Player player) {
         return isRunningLunarClient(player.getUniqueId());
     }
 
     /**
      * Checks if a user is currently running LunarClient on the server.
-     * @param playerUuid The ID of the suspect LunarClient user.
      *
+     * @param playerUuid The ID of the suspect LunarClient user.
      * @return The {@link Boolean} value of weather the player is currently running Lunar Client.
      */
     public boolean isRunningLunarClient(UUID playerUuid) {
@@ -137,11 +148,11 @@ public final class LunarClientAPI extends JavaPlugin implements Listener {
 
     /**
      * Gets an immutable set of all the bukkit {@link Player} currently running lunar client.
-     *
+     * <p>
      * NOTE: This would only be ideal for displaying an object of the player, for computation
      * it would probably be better to use the raw UUID of the players.
      *
-     * @return An unmodifiableSet of the players currentl running lunar client.
+     * @return An unmodifiableSet of the players currently running lunar client.
      */
     public Set<Player> getPlayersRunningLunarClient() {
         return Collections.unmodifiableSet(playersRunningLunarClient.stream().map(Bukkit::getPlayer).collect(Collectors.toSet()));
@@ -153,10 +164,10 @@ public final class LunarClientAPI extends JavaPlugin implements Listener {
      *
      * @param player The player receiving the staff modules.
      * @param module The staff module to set to a state.
-     * @param state The new state of the StaffModule.
+     * @param state  The new state of the StaffModule.
      */
-    public void setStaffModuleState(Player player, StaffModule module, boolean state) {
-        sendPacket(player, new LCPacketStaffModState(module.name(), state));
+    public void setStaffModuleState(final Player player, StaffModule module, boolean state) {
+        this.sendPacket(player, new LCPacketStaffModState(module.name(), state));
     }
 
     /**
@@ -165,9 +176,9 @@ public final class LunarClientAPI extends JavaPlugin implements Listener {
      *
      * @param player The player to receive the enabled staff modules.
      */
-    public void giveAllStaffModules(Player player) {
+    public void giveAllStaffModules(final Player player) {
         for (StaffModule module : StaffModule.values()) {
-            setStaffModuleState(player, module, true);
+            this.setStaffModuleState(player, module, true);
         }
     }
 
@@ -177,9 +188,9 @@ public final class LunarClientAPI extends JavaPlugin implements Listener {
      *
      * @param player The player receiving the new staff module state.
      */
-    public void disableAllStaffModules(Player player) {
+    public void disableAllStaffModules(final Player player) {
         for (StaffModule module : StaffModule.values()) {
-            setStaffModuleState(player, module, false);
+            this.setStaffModuleState(player, module, false);
         }
     }
 
@@ -191,8 +202,8 @@ public final class LunarClientAPI extends JavaPlugin implements Listener {
      * @param packet The teammates to send to the player.
      */
     public void sendTeammates(Player player, LCPacketTeammates packet) {
-        validatePlayers(player, packet);
-        sendPacket(player, packet);
+        this.validatePlayers(player, packet);
+        this.sendPacket(player, packet);
     }
 
     /**
@@ -201,55 +212,62 @@ public final class LunarClientAPI extends JavaPlugin implements Listener {
      * Used above in sendTeammates.
      *
      * @param sendingTo The player we're sending teammates to.
-     * @param packet The teammates packet to verify.
+     * @param packet    The teammates packet to verify.
      */
-    private void validatePlayers(Player sendingTo, LCPacketTeammates packet) {
-        packet.getPlayers().entrySet().removeIf(entry -> Bukkit.getPlayer(entry.getKey()) != null && !Bukkit.getPlayer(entry.getKey()).getWorld().equals(sendingTo.getWorld()));
+    private void validatePlayers(final Player sendingTo, LCPacketTeammates packet) {
+        for (Map.Entry<UUID, Map<String, Double>> entry : packet.getPlayers().entrySet()) {
+            final UUID uuid = entry.getKey();
+            final Player player = Bukkit.getPlayer(uuid);
+
+            if (player.getWorld().equals(sendingTo.getWorld())) {
+                packet.getPlayers().remove(uuid);
+            }
+        }
     }
 
     /**
      * Create a hologram for a player on the server.
      *
-     * @param player The observer of the new hologram.
-     * @param id The randomly generated UUID for the hologram. This will need to be saved for other hologram actions.
+     * @param player   The observer of the new hologram.
+     * @param id       The randomly generated UUID for the hologram. This will need to be saved for other hologram actions.
      * @param position The location (x, y, z) of where the hologram will be placed in the world.
-     * @param lines The lines of the hologram to be sent to the player.
+     * @param lines    The lines of the hologram to be sent to the player.
      */
     public void addHologram(Player player, UUID id, Vector position, String[] lines) {
-        sendPacket(player, new LCPacketHologram(id, position.getX(), position.getY(), position.getZ(), Arrays.asList(lines)));
+        this.sendPacket(player, new LCPacketHologram(id, position.getX(), position.getY(), position.getZ(), Arrays.asList(lines)));
     }
 
     /**
      * Update the lines of a previously added hologram for a specific player.
      *
      * @param player The observer of the new hologram lines.
-     * @param id The ID of the previously placed hologram.
-     * @param lines The new lines to show to the player.
+     * @param id     The ID of the previously placed hologram.
+     * @param lines  The new lines to show to the player.
      */
     public void updateHologram(Player player, UUID id, String[] lines) {
-        sendPacket(player, new LCPacketHologramUpdate(id, Arrays.asList(lines)));
+        this.sendPacket(player, new LCPacketHologramUpdate(id, Arrays.asList(lines)));
     }
 
     /**
      * Remove a previously set hologram for a specific player.
      *
      * @param player The player to remove the hologram for.
-     * @param id The ID of the previously created hologram.
+     * @param id     The ID of the previously created hologram.
      */
     public void removeHologram(Player player, UUID id) {
-        sendPacket(player, new LCPacketHologramRemove(id));
+        this.sendPacket(player, new LCPacketHologramRemove(id));
     }
 
     /**
      * Override the normal (bukkit) nametag with lunar client nametags.
      * This supports multiple lines, so index 0 will be bottom of the nametags.
      *
-     * @param target The player whos nametag will be affected for the viewer.
+     * @param target  The player whos nametag will be affected for the viewer.
      * @param nametag The list of nametags that will be sent to the viewer. Supports color codes.
-     * @param viewer The observer who will see the targets nametag as a lunar client nametag.
+     * @param viewer  The observer who will see the targets nametag as a lunar client nametag.
      */
     public void overrideNametag(Player target, List<String> nametag, Player viewer) {
-        sendPacket(viewer, new LCPacketNametagsOverride(target.getUniqueId(), nametag));
+        this.sendPacket(viewer, new LCPacketNametagsOverride(target.getUniqueId(), nametag));
     }
 
     /**
@@ -261,18 +279,17 @@ public final class LunarClientAPI extends JavaPlugin implements Listener {
      * @param viewer The observer who will see the targets nametag as normal (bukkit).
      */
     public void resetNametag(Player target, Player viewer) {
-        sendPacket(viewer, new LCPacketNametagsOverride(target.getUniqueId(), null));
+        this.sendPacket(viewer, new LCPacketNametagsOverride(target.getUniqueId(), null));
     }
 
     /**
      * Hide the target's username from the viewer.
      *
-     *
      * @param target This player's nametag will be hidden from the viewer.
      * @param viewer The observer who will hide the targets nametag.
      */
     public void hideNametag(Player target, Player viewer) {
-        sendPacket(viewer, new LCPacketNametagsOverride(target.getUniqueId(), Collections.emptyList()));
+        this.sendPacket(viewer, new LCPacketNametagsOverride(target.getUniqueId(), Collections.emptyList()));
     }
 
     /**
@@ -283,47 +300,45 @@ public final class LunarClientAPI extends JavaPlugin implements Listener {
      * @return {@link String} of the set name of the world, or default to the worlds unique id.
      */
     public String getWorldIdentifier(World world) {
-        String worldIdentifier = world.getUID().toString();
+        final UUID worldIdentifier = world.getUID();
 
-        if (worldIdentifiers.containsKey(world.getUID())) {
-            worldIdentifier = worldIdentifiers.get(world.getUID()).apply(world);
-        }
-
-        return worldIdentifier;
+        return this.worldIdentifiers.containsKey(worldIdentifier)
+                ? this.worldIdentifiers.get(worldIdentifier).apply(world)
+                : worldIdentifier.toString();
     }
 
     /**
      * Registers a custom name for the world to be identified as on the client.
-     *
+     * <p>
      * Not required, if not set it will default to the unquie id of the world.
      *
-     * @param world The bukkit object for the world.
+     * @param world      The bukkit object for the world.
      * @param identifier The new function identifier.
      */
     public void registerWorldIdentifier(World world, Function<World, String> identifier) {
-        worldIdentifiers.put(world.getUID(), identifier);
+        this.worldIdentifiers.put(world.getUID(), identifier);
     }
 
     /**
      * Send a waypoint to a lunarclient player.
-     *
+     * <p>
      * Note: You will likely need to persist this object in order to remove it later.
      *
-     * @param player A player running lunar client.
+     * @param player   A player running lunar client.
      * @param waypoint A new waypoint object to send to the player.
      */
     public void sendWaypoint(Player player, LCWaypoint waypoint) {
-        sendPacket(player, new LCPacketWaypointAdd(waypoint.getName(), waypoint.getWorld(), waypoint.getColor(), waypoint.getX(), waypoint.getY(), waypoint.getZ(), waypoint.isForced(), waypoint.isVisible()));
+        this.sendPacket(player, new LCPacketWaypointAdd(waypoint.getName(), waypoint.getWorld(), waypoint.getColor(), waypoint.getX(), waypoint.getY(), waypoint.getZ(), waypoint.isForced(), waypoint.isVisible()));
     }
 
     /**
      * Remove a waypoint that the server sent from a player.
      *
-     * @param player A player running lunar client.
+     * @param player   A player running lunar client.
      * @param waypoint A waypoint object that the server has previously sent.
      */
     public void removeWaypoint(Player player, LCWaypoint waypoint) {
-        sendPacket(player, new LCPacketWaypointRemove(waypoint.getName(), waypoint.getWorld()));
+        this.sendPacket(player, new LCPacketWaypointRemove(waypoint.getName(), waypoint.getWorld()));
     }
 
     /**
@@ -331,7 +346,7 @@ public final class LunarClientAPI extends JavaPlugin implements Listener {
      * to send packets to the Lunar Client player.
      * Implementation with direct method calls is not recommended,
      * and will likely be very brittle in regards to functionality.
-     *
+     * <p>
      * sendPacket will either send the packet immediately to the Lunar Client player
      * or if for some reason there is a delay in the connection, it will queue the packet for
      * consumption at a later date, when the player registers.
@@ -340,11 +355,10 @@ public final class LunarClientAPI extends JavaPlugin implements Listener {
      * @param packet The Lunar Client packet that should be sent to the Lunar Client player.
      * @return {@link Boolean} value of weather the packet was sent.
      */
-    public boolean sendPacket(Player player, LCPacket packet) {
+    public boolean sendPacket(final Player player, LCPacket packet) {
         UUID playerId = player.getUniqueId();
         if (isRunningLunarClient(playerId)) {
-            String channel = MESSAGE_CHANNEL;
-            player.sendPluginMessage(this, channel, LCPacket.getPacketData(packet));
+            player.sendPluginMessage(this, MESSAGE_CHANNEL, LCPacket.getPacketData(packet));
             Bukkit.getPluginManager().callEvent(new LCPacketSentEvent(player, packet));
             return true;
         }

@@ -8,7 +8,8 @@ import org.bukkit.event.player.PlayerEvent;
 
 public final class LCPlayerRegisterEvent extends PlayerEvent {
 
-    @Getter private static HandlerList handlerList = new HandlerList();
+    @Getter
+    private static final HandlerList handlerList = new HandlerList();
 
     /**
      * Called whenever a player registers the LC plugin channel

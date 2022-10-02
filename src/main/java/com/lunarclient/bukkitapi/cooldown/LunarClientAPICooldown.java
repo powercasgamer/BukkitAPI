@@ -3,7 +3,8 @@ package com.lunarclient.bukkitapi.cooldown;
 import lombok.experimental.UtilityClass;
 import org.bukkit.entity.Player;
 
-import java.util.*;
+import java.util.HashMap;
+import java.util.Map;
 
 @UtilityClass
 public class LunarClientAPICooldown {
@@ -35,11 +36,11 @@ public class LunarClientAPICooldown {
      * Sends a cooldown to a Lunar Client player that has previously been registered.
      * This could be used instead of passing around a {@link LCCooldown} instance.
      *
-     * @param player The player to send a cooldown to
+     * @param player       The player to send a cooldown to
      * @param cooldownName The name of the {@link LCCooldown} that is sent.
      */
     public void sendCooldown(Player player, String cooldownName) {
-        String cooldownId = cooldownName.toLowerCase();
+        final String cooldownId = cooldownName.toLowerCase();
         if (!registeredCooldowns.containsKey(cooldownId)) {
             throw new IllegalStateException("Attempted to send a cooldown that isn't registered [" + cooldownName + "]");
         }

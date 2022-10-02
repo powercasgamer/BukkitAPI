@@ -17,6 +17,7 @@ public class LunarClientDefaultNetHandler implements LCNetHandlerServer {
     /**
      * Called when a player changes their staff mode state.
      * Not currently implemented.
+     *
      * @param lcPacketStaffModStatus All the status of the players staff mode.
      */
     @Override
@@ -38,6 +39,7 @@ public class LunarClientDefaultNetHandler implements LCNetHandlerServer {
 
     /**
      * Called when a player removes a waypoint. See above (handleAddWaypoint) for more detail.
+     *
      * @param lcPacketWaypointRemove The waypoint name and world removed by the player.
      */
     @Override
@@ -59,7 +61,7 @@ public class LunarClientDefaultNetHandler implements LCNetHandlerServer {
 
     /**
      * Deprecated entirely, may return once a solution for voice is found.
-     *
+     * <p>
      * Not currently a work in progress.
      */
     @Override
@@ -70,7 +72,7 @@ public class LunarClientDefaultNetHandler implements LCNetHandlerServer {
 
     /**
      * Deprecated entirely, may return once a solution for voice is found.
-     *
+     * <p>
      * Not currently a work in progress.
      */
     @Override
@@ -81,7 +83,7 @@ public class LunarClientDefaultNetHandler implements LCNetHandlerServer {
 
     /**
      * Deprecated entirely, may return once a solution for voice is found.
-     *
+     * <p>
      * Not currently a work in progress.
      */
     @Override
